@@ -1,0 +1,39 @@
+{
+  "include": ["green_detection"],
+
+  "exclude": ["**/__pycache__", "stubs/*", "server/*"],
+
+  "stubPath": "stubs",
+
+  "reportOptionalFunctionAccess": false,
+  "reportMissingModuleSource": true,
+  "reportMissingImports": true,
+  "reportUndefinedVariable": true,
+  "reportAssertAlwaysTrue": true,
+  "reportInvalidStringEscapeSequence": true,
+  "reportInvalidTypeVarUse": true,
+  "reportMissingTypeStubs": false,
+  "reportSelfClsParameterName": false,
+  "reportUnsupportedDunderAll": false,
+  "reportUnusedExpression": false,
+  "reportWildcardImportFromLibrary": false,
+  "reportGeneralTypeIssues": false,
+  "reportOptionalSubscript": false,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalCall": false,
+  "reportOptionalIterable": false,
+  "reportOptionalContextManager": false,
+  "reportOptionalOperand": false,
+  "reportTypedDictNotRequiredAccess": false,
+  "reportPrivateImportUsage": false,
+  "reportUnboundVariable": false,
+  "reportUnusedCoroutine": false,
+
+  "pythonPlatform": "Linux",
+
+  "executionEnvironments": [
+    {
+      "root": "src"
+    }
+  ]
+}
