@@ -3,6 +3,8 @@ import numpy as np
 
 class DenseLayer:
     def __init__(self, input_size, output_size):
+        self.input_size = input_size
+        self.output_size = output_size
         self.weights = np.random.randn(output_size, input_size)
         self.bias = np.zeros((output_size, 1))
         self.input = None

@@ -1,13 +1,13 @@
-from get_mnist import get_mnist
-from nn import DenseLayer, NeuralNet, SigmoidActivation
-from test_model import test_model
-from knn import KNN
+from utils.get_mnist import get_mnist
+from models.nn import DenseLayer, NeuralNet, SigmoidActivation
+from utils.test_model import test_model
+from models.knn import KNN
 
 mnist = get_mnist()
 x_train, y_train, x_test, y_test = mnist
 
 input_size = x_train[0].size
-hidden_size = 150
+hidden_size = 100
 output_size = y_train.max() + 1
 
 nn_model = NeuralNet(
@@ -18,10 +18,12 @@ nn_model = NeuralNet(
         SigmoidActivation(),
     ],
     epochs=500,
-    learning_rate=0.01,
+    learning_rate=0.1,
 )
 
 knn_model = KNN(3)
 
 print(f"NN accuracy: {test_model(nn_model, *mnist)}")
 print(f"KNN accuracy: {test_model(knn_model, *mnist)}")
+# NN accuracy: 0.9710467706013363
+# KNN accuracy: 0.977728285077951

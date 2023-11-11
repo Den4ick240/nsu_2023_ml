@@ -1,7 +1,7 @@
 import numpy as np
-from get_mnist import get_mnist
-from test_model import test_model
-from knn import KNN, get_knn_outliers, get_odin_outliers
+from utils.get_mnist import get_mnist
+from utils.test_model import test_model
+from models.knn import KNN, get_knn_outliers, get_odin_outliers
 
 n_neighbors = 3
 mnist = get_mnist()
