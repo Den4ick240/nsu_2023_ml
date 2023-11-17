@@ -1,6 +1,15 @@
 import numpy as np
 
 
+class MSELoss:
+    def forward(self, y_pred, target):
+        self.diff = y_pred - target
+        return np.mean(self.diff**2)
+
+    def backward(self):
+        return 2 * self.diff
+
+
 class DenseLayer:
     def __init__(self, input_size, output_size):
         self.input_size = input_size
@@ -45,7 +54,10 @@ class SigmoidActivation:
 
 
 class NeuralNet:
-    def __init__(self, layers, epochs=10, learning_rate=0.01, is_reg=False):
+    def __init__(
+        self, layers, epochs=10, learning_rate=0.01, is_reg=False, loss=MSELoss()
+    ):
+        self.loss = loss
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.layers = layers
@@ -57,7 +69,8 @@ class NeuralNet:
             output = layer.forward(output)
         return output
 
-    def backward(self, gradient):
+    def backward(self):
+        gradient = self.loss.backward()
         for layer in reversed(self.layers):
             gradient = layer.backward(gradient)
 
@@ -92,13 +105,10 @@ class NeuralNet:
 
                 output = self.forward(input_data)
 
-                # Compute loss (using mean squared error)
-                loss = np.mean((output - target) ** 2)
+                loss = self.loss.forward(output, target)
                 total_loss += loss
 
-                # Backward pass (gradient computation)
-                gradient = 2 * (output - target)  # derivative of mean squared error
-                self.backward(gradient)
+                self.backward()
 
                 # Update parameters
                 self.update_parameters(self.learning_rate)
