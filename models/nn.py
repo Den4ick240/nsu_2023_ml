@@ -37,14 +37,8 @@ class WeightUpdater:
         self.learning_rate = learning_rate
 
     def update_layer(self, layer: DenseLayer) -> None:
-        layer.weights = self.get_updated_weights(layer.weights, layer.gradient_weights)
-        layer.bias = self.get_updated_bias(layer.bias, layer.gradient_bias)
-
-    def get_updated_weights(self, weights, gradient):
-        return weights - self.learning_rate * gradient
-
-    def get_updated_bias(self, bias, gradient):
-        return bias - self.learning_rate * gradient
+        layer.weights = layer.weights - self.learning_rate * layer.gradient_weights
+        layer.bias = layer.bias - self.learning_rate * layer.gradient_bias
 
 
 class SigmoidActivation:
