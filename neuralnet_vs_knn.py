@@ -18,7 +18,6 @@ nn_model = NeuralNet(
         SigmoidActivation(),
     ],
     epochs=500,
-    learning_rate=0.1,
 )
 
 knn_model = KNN(3)

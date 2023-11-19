@@ -31,9 +31,14 @@ class DenseLayer:
         self.gradient_bias = np.sum(gradient, axis=1, keepdims=True)
         return np.dot(self.weights.T, gradient)
 
-    def update_parameters(self, learning_rate):
-        self.weights -= learning_rate * self.gradient_weights
-        self.bias -= learning_rate * self.gradient_bias
+
+class WeightUpdater:
+    def __init__(self, learning_rate) -> None:
+        self.learning_rate = learning_rate
+
+    def update_layer(self, layer: DenseLayer) -> None:
+        layer.weights = layer.weights - self.learning_rate * layer.gradient_weights
+        layer.bias = layer.bias - self.learning_rate * layer.gradient_bias
 
 
 class SigmoidActivation:
@@ -55,13 +60,18 @@ class SigmoidActivation:
 
 class NeuralNet:
     def __init__(
-        self, layers, epochs=10, learning_rate=0.01, is_reg=False, loss=MSELoss()
+        self,
+        layers,
+        epochs=10,
+        is_reg=False,
+        loss=MSELoss(),
+        weights_updater=WeightUpdater(0.1),
     ):
         self.loss = loss
         self.epochs = epochs
-        self.learning_rate = learning_rate
         self.layers = layers
         self.is_reg = is_reg
+        self.weights_updater = weights_updater
 
     def forward(self, input_data):
         output = input_data
@@ -74,10 +84,10 @@ class NeuralNet:
         for layer in reversed(self.layers):
             gradient = layer.backward(gradient)
 
-    def update_parameters(self, learning_rate):
+    def update_parameters(self):
         for layer in self.layers:
             if isinstance(layer, DenseLayer):
-                layer.update_parameters(learning_rate)
+                self.weights_updater.update_layer(layer)
 
     def one_hot_encode(self, labels, num_classes):
         encoded_labels = np.zeros((len(labels), num_classes))
@@ -111,7 +121,7 @@ class NeuralNet:
                 self.backward()
 
                 # Update parameters
-                self.update_parameters(self.learning_rate)
+                self.update_parameters()
 
             # Print average loss for the epoch
             if (epoch + 1) % 10 == 0:

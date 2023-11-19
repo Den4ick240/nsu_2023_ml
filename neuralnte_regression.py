@@ -27,7 +27,7 @@ def get_model(num_hidden_layers, num_hidden_nodes):
         layers.append(SigmoidActivation())
     layers.append(DenseLayer(num_hidden_nodes, 1))
     layers.append(SigmoidActivation())
-    model = NeuralNet(layers, 200, 0.1, True)
+    model = NeuralNet(layers, 200, True)
     return model
 
 
