@@ -1,5 +1,6 @@
+from models.nn import Batchnorm
 from utils.get_mnist import get_mnist
-from models.nn import DenseLayer, NeuralNet, SigmoidActivation
+from models.nn import DenseLayer, NeuralNet, SigmoidActivation, WeightUpdater
 from utils.test_model import test_model
 from models.knn import KNN
 
@@ -12,12 +13,16 @@ output_size = y_train.max() + 1
 
 nn_model = NeuralNet(
     [
-        DenseLayer(input_size, hidden_size),
+        DenseLayer(hidden_size),
+        Batchnorm(),
         SigmoidActivation(),
-        DenseLayer(hidden_size, output_size),
+        DenseLayer(output_size),
+        Batchnorm(),
         SigmoidActivation(),
     ],
-    epochs=500,
+    epochs=1000,
+    batch_size=32,
+    weights_updater=WeightUpdater(0.01),
 )
 
 knn_model = KNN(3)

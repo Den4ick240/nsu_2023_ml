@@ -1,4 +1,5 @@
 import numpy as np
+from numpy._typing import ArrayLike
 
 
 class MSELoss:
@@ -11,25 +12,102 @@ class MSELoss:
 
 
 class DenseLayer:
-    def __init__(self, input_size, output_size):
-        self.input_size = input_size
-        self.output_size = output_size
-        self.weights = np.random.randn(output_size, input_size)
-        self.bias = np.zeros((output_size, 1))
+    def __init__(self, size):
+        self.output_size = size
+        self.input_size = 0
+        self.weights = np.array([])
+        self.bias = np.array([])
         self.input = None
         self.output = None
         self.gradient_weights = None
         self.gradient_bias = None
 
+    def init_weights(self, input_size):
+        output_size = self.output_size
+        self.input_size = input_size
+        self.weights = np.random.randn(output_size, input_size)
+        self.bias = np.zeros((output_size, 1))
+
     def forward(self, input_data):
+        if self.input_size == 0:
+            self.init_weights(input_data.shape[1])
         self.input = input_data
-        self.output = np.dot(self.weights, input_data) + self.bias
+        self.output = np.array(
+            [
+                np.dot(self.weights, input_column) + self.bias
+                for input_column in input_data
+            ]
+        )
         return self.output
 
     def backward(self, gradient):
-        self.gradient_weights = np.dot(gradient, self.input.T)
-        self.gradient_bias = np.sum(gradient, axis=1, keepdims=True)
-        return np.dot(self.weights.T, gradient)
+        self.gradient_weights = np.sum(
+            [
+                np.dot(_gradient, _input.T)
+                for _gradient, _input in zip(gradient, self.input)
+            ],
+            axis=0,
+        )
+        self.gradient_bias = np.sum(gradient.sum(axis=0), axis=1, keepdims=True)
+        return np.array([np.dot(self.weights.T, _gradient) for _gradient in gradient])
+
+
+class Batchnorm:
+    def __init__(self):
+        self.gamma = None
+        self.beta = None
+        self.global_mu_var = None
+        self.batch_count = 0
+
+    def init_params(self):
+        self.gamma = np.ones((1, self.X_shape[1]))
+        self.beta = np.zeros((1, self.X_shape[1]))
+
+    def forward(self, X):
+        self.n_X = X.shape[0]
+        self.X_shape = X.shape
+        if self.gamma is None:
+            self.init_params()
+
+        self.X_flat = X.ravel().reshape(self.n_X, -1)
+        if self.n_X != 1:
+            self.mu = np.mean(self.X_flat, axis=0)
+            self.var = np.var(self.X_flat, axis=0)
+        else:
+            self.mu, self.var = self.global_mu_var
+
+        self.X_norm = (self.X_flat - self.mu) / np.sqrt(self.var + 1e-8)
+        out = np.array([self.gamma * it + self.beta for it in self.X_norm])
+
+        return out.reshape(self.X_shape)
+
+    def backward(self, dout):
+        dout = dout.ravel().reshape(dout.shape[0], -1)
+        X_mu = self.X_flat - self.mu
+        var_inv = 1.0 / np.sqrt(self.var + 1e-8)
+
+        self.dbeta = np.sum(dout, axis=0)
+        self.dgamma = np.sum(dout * self.X_norm, axis=0)
+
+        dX_norm = dout * self.gamma
+        dvar = np.sum(dX_norm * X_mu, axis=0) * -0.5 * (self.var + 1e-8) ** (-3 / 2)
+        dmu = np.sum(dX_norm * -var_inv, axis=0) + dvar * 1 / self.n_X * np.sum(
+            -2.0 * X_mu, axis=0
+        )
+        dX = (dX_norm * var_inv) + (dmu / self.n_X) + (dvar * 2 / self.n_X * X_mu)
+
+        dX = dX.reshape(self.X_shape)
+        if self.batch_count == 0:
+            self.global_mu_var = np.array([self.mu, self.var])
+            self.batch_count += 1
+        else:
+            self.global_mu_var *= self.batch_count
+            self.batch_count += 1
+            self.global_mu_var = (
+                self.global_mu_var + np.array([self.mu, self.var])
+            ) / self.batch_count
+
+        return dX
 
 
 class WeightUpdater:
@@ -39,6 +117,10 @@ class WeightUpdater:
     def update_layer(self, layer: DenseLayer) -> None:
         layer.weights = layer.weights - self.learning_rate * layer.gradient_weights
         layer.bias = layer.bias - self.learning_rate * layer.gradient_bias
+
+    def update_batchnorm_layer(self, layer: Batchnorm) -> None:
+        layer.beta -= self.learning_rate * layer.dbeta
+        layer.gamma -= self.learning_rate * layer.dgamma
 
 
 class SigmoidActivation:
@@ -66,12 +148,14 @@ class NeuralNet:
         is_reg=False,
         loss=MSELoss(),
         weights_updater=WeightUpdater(0.1),
+        batch_size=16,
     ):
         self.loss = loss
         self.epochs = epochs
         self.layers = layers
         self.is_reg = is_reg
         self.weights_updater = weights_updater
+        self.batch_size = batch_size
 
     def forward(self, input_data):
         output = input_data
@@ -88,6 +172,8 @@ class NeuralNet:
         for layer in self.layers:
             if isinstance(layer, DenseLayer):
                 self.weights_updater.update_layer(layer)
+            elif isinstance(layer, Batchnorm):
+                self.weights_updater.update_batchnorm_layer(layer)
 
     def one_hot_encode(self, labels, num_classes):
         encoded_labels = np.zeros((len(labels), num_classes))
@@ -106,12 +192,17 @@ class NeuralNet:
             y_encoded = y.reshape(-1, 1)
         for epoch in range(self.epochs):
             total_loss = 0
-            for i in range(X.shape[0]):
+            X_shuffled = X.copy()
+            y_shuffled = y_encoded.copy()
+            np.random.shuffle(X_shuffled)
+            np.random.shuffle(y_shuffled)
+
+            for i in range(0, X.shape[0], self.batch_size):
                 # Forward pass
-                input_data = (
-                    X[i, :].reshape(-1, 1) if len(X.shape) > 1 else np.array([[X[i]]])
-                )
-                target = y_encoded[i, :].reshape(-1, 1)
+                batch_size = self.batch_size
+                ii = min(i, X.shape[0] - batch_size)
+                input_data = X[ii : ii + batch_size, :].reshape(batch_size, -1, 1)
+                target = y_encoded[ii : ii + batch_size, :].reshape(batch_size, -1, 1)
 
                 output = self.forward(input_data)
 
@@ -123,7 +214,6 @@ class NeuralNet:
                 # Update parameters
                 self.update_parameters()
 
-            # Print average loss for the epoch
             if (epoch + 1) % 10 == 0:
                 print(
                     f"Epoch {epoch + 1}/{self.epochs}, Loss: {total_loss / X.shape[0]}"
@@ -135,8 +225,8 @@ class NeuralNet:
             input_data = (
                 X[i, :].reshape(-1, 1) if len(X.shape) > 1 else np.array([[X[i]]])
             )
-            output = self.forward(input_data)
-            predictions.append(output.flatten())
+            output = self.forward(np.array([input_data]))
+            predictions.append(output[0].flatten())
         if self.is_reg:
             return np.array(predictions)
         return self.one_hot_decode(np.array(predictions))
