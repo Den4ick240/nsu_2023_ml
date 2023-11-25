@@ -201,7 +201,9 @@ class NeuralNet:
                 # Forward pass
                 batch_size = self.batch_size
                 ii = min(i, X.shape[0] - batch_size)
-                input_data = X[ii : ii + batch_size, :].reshape(batch_size, -1, 1)
+                input_data = X.reshape(X.shape[0], -1)[ii : ii + batch_size, :].reshape(
+                    batch_size, -1, 1
+                )
                 target = y_encoded[ii : ii + batch_size, :].reshape(batch_size, -1, 1)
 
                 output = self.forward(input_data)
